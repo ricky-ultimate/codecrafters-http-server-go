@@ -4,14 +4,20 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strings"
 )
 
 func connect(conn net.Conn) {
-	buff := make([]byte, 1024)
-	_, err := conn.Read(buff)
+	req := make([]byte, 1024)
+	_, err := conn.Read(req)
 	if err != nil {
 		fmt.Println("Error accepting connection: ", err.Error())
 		os.Exit(1)
+	}
+
+	if !strings.HasPrefix(string(req), "GET /HTTP /1.1") {
+		conn.Write([]byte("HTTP/1.1 404 Not Found\r\n\r\n"))
+		return
 	}
 
 	conn.Write([]byte("HTTP/1.1 200 OK\r\n\r\nConnction Established!\r\n"))
