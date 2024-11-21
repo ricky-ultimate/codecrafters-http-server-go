@@ -15,7 +15,7 @@ func connect(conn net.Conn) {
 		os.Exit(1)
 	}
 
-	if !strings.HasPrefix(string(req), "GET /HTTP /1.1") {
+	if !strings.HasPrefix(string(req), "GET / HTTP/1.1") {
 		conn.Write([]byte("HTTP/1.1 404 Not Found\r\n\r\n"))
 		return
 	}
