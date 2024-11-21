@@ -37,6 +37,10 @@ func main() {
 	}
 
 	conn, err := l.Accept()
+	if err != nil {
+		fmt.Println("Failed to bind to port 4221")
+		os.Exit(1)
+	}
 
 	connect(conn)
 
