@@ -7,46 +7,62 @@ import (
 	"strings"
 )
 
-func connect(conn net.Conn) {
+func handleConnection(conn net.Conn) {
+	defer conn.Close() // Ensure the connection is closed after handling
+
 	req := make([]byte, 1024)
-	_, err := conn.Read(req)
-	if err != nil {
-		fmt.Println("Error accepting connection: ", err.Error())
-		os.Exit(1)
+	if _, err := conn.Read(req); err != nil {
+		fmt.Println("Error reading request:", err)
+		return
 	}
 
-	lines := strings.Split(string(req), "\r\n")
-	route := strings.Split(lines[0], " ")[1]
-
-	if route == "/" {
-		conn.Write([]byte("HTTP/1.1 200 OK\r\n\r\nConnection Established!\r\n"))
-	} else if strings.HasPrefix(route, "/echo") {
-		param := strings.SplitN(route, "/", 3)[2]
-		conn.Write([]byte(fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s", len(param), param)))
-	} else {
-		conn.Write([]byte("HTTP/1.1 404 Not Found\r\n\r\n"))
+	// Extract the request route
+	requestLine := strings.SplitN(string(req), "\r\n", 2)[0]
+	parts := strings.Fields(requestLine) // Splits "GET / HTTP/1.1" into ["GET", "/", "HTTP/1.1"]
+	if len(parts) < 2 {
+		conn.Write([]byte("HTTP/1.1 400 Bad Request\r\n\r\n"))
+		return
 	}
-	conn.Close()
+
+	route := parts[1] // Extract the route
+
+	// Handle routes
+	switch {
+	case route == "/":
+		sendResponse(conn, "200 OK", "Connection Established!")
+	case strings.HasPrefix(route, "/echo/"):
+		param := strings.TrimPrefix(route, "/echo/")
+		sendResponse(conn, "200 OK", param)
+	default:
+		sendResponse(conn, "404 Not Found", "Route not found")
+	}
+}
+
+func sendResponse(conn net.Conn, status, body string) {
+	response := fmt.Sprintf(
+		"HTTP/1.1 %s\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s",
+		status, len(body), body,
+	)
+	conn.Write([]byte(response))
 }
 
 func main() {
-	// You can use print statements as follows for debugging, they'll be visible when running tests.
-	fmt.Println("Logs from your program will appear here!")
+	port := "4221"
+	fmt.Printf("Starting server on port %s...\n", port)
 
-	// Uncomment this block to pass the first stage
-
-	l, err := net.Listen("tcp", "0.0.0.0:4221")
+	listener, err := net.Listen("tcp", "0.0.0.0:"+port)
 	if err != nil {
-		fmt.Println("Failed to bind to port 4221")
+		fmt.Printf("Error starting server on port %s: %s\n", port, err)
 		os.Exit(1)
 	}
+	defer listener.Close()
 
-	conn, err := l.Accept()
-	if err != nil {
-		fmt.Println("Failed to bind to port 4221")
-		os.Exit(1)
+	for {
+		conn, err := listener.Accept()
+		if err != nil {
+			fmt.Println("Error accepting connection:", err)
+			continue
+		}
+		go handleConnection(conn) // Handle connections concurrently
 	}
-
-	connect(conn)
-
 }
