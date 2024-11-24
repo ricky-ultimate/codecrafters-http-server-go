@@ -15,12 +15,17 @@ func connect(conn net.Conn) {
 		os.Exit(1)
 	}
 
-	if !strings.HasPrefix(string(req), "GET / HTTP/1.1") {
-		conn.Write([]byte("HTTP/1.1 404 Not Found\r\n\r\n"))
-		return
-	}
+	lines := strings.Split(string(req), "\r\n")
+	route := strings.Split(lines[0], " ")[1]
 
-	conn.Write([]byte("HTTP/1.1 200 OK\r\n\r\nConnction Established!\r\n"))
+	if route == "/" {
+		conn.Write([]byte("HTTP/1.1 200 OK\r\n\r\nConnection Established!\r\n"))
+	} else if strings.HasPrefix(route, "/echo") {
+		param := strings.SplitN(route, "/", 3)[2]
+		conn.Write([]byte(fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s", len(param), param)))
+	} else {
+		conn.Write([]byte("HTTP/1.1 404 Not Found\r\n\r\n"))
+	}
 	conn.Close()
 }
 
