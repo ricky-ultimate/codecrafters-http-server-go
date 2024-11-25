@@ -41,6 +41,18 @@ func handleConnection(conn net.Conn) {
 		} else {
 			sendResponse(conn, "200 OK", userAgent)
 		}
+	case strings.HasPrefix(route, "/files/"):
+		directory := os.Args[2]
+		fileName := strings.TrimPrefix(route, "/files/")
+		fmt.Print(fileName)
+		data, err := os.ReadFile(directory + fileName)
+		if err != nil {
+			sendResponse(conn, "404 Not Found", "File not found")
+		} else {
+			response := fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: %d\r\n\r\n%s", len(data), data)
+			conn.Write([]byte(response))
+		}
+
 	default:
 		sendResponse(conn, "404 Not Found", "Route not found")
 	}
