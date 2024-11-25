@@ -17,8 +17,9 @@ func handleConnection(conn net.Conn) {
 	}
 
 	// Extract the request route
-	requestLine := strings.SplitN(string(req), "\r\n", 2)[0]
-	parts := strings.Fields(requestLine) // Splits "GET / HTTP/1.1" into ["GET", "/", "HTTP/1.1"]
+	requestParts := strings.SplitN(string(req), "\r\n", 2) // Separate request line and headers
+	requestLine := requestParts[0]                         // First line: e.g., "GET / HTTP/1.1"
+	parts := strings.Fields(requestLine)                   // Split into ["GET", "/route", "HTTP/1.1"]
 	if len(parts) < 2 {
 		conn.Write([]byte("HTTP/1.1 400 Bad Request\r\n\r\n"))
 		return
@@ -33,9 +34,33 @@ func handleConnection(conn net.Conn) {
 	case strings.HasPrefix(route, "/echo/"):
 		param := strings.TrimPrefix(route, "/echo/")
 		sendResponse(conn, "200 OK", param)
+	case route == "/user-agent":
+		userAgent := extractHeaderValue(string(req), "User-Agent")
+		if userAgent == "" {
+			sendResponse(conn, "400 Bad Request", "User-Agent header missing")
+		} else {
+			sendResponse(conn, "200 OK", userAgent)
+		}
 	default:
 		sendResponse(conn, "404 Not Found", "Route not found")
 	}
+}
+
+func extractHeaderValue(request, headerName string) string {
+	// Split headers from the body
+	parts := strings.Split(request, "\r\n\r\n")
+	if len(parts) < 1 {
+		return ""
+	}
+
+	// Extract headers
+	headers := strings.Split(parts[0], "\r\n")
+	for _, header := range headers {
+		if strings.HasPrefix(header, headerName+":") {
+			return strings.TrimSpace(strings.TrimPrefix(header, headerName+":"))
+		}
+	}
+	return ""
 }
 
 func sendResponse(conn net.Conn, status, body string) {
