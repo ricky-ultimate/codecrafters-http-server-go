@@ -30,16 +30,16 @@ func handleConnection(conn net.Conn) {
 	// Handle routes
 	switch {
 	case route == "/":
-		sendResponse(conn, "200 OK", "Connection Established!")
+		sendResponse(conn, "200 OK", "text/plain", "Connection Established!")
 	case strings.HasPrefix(route, "/echo/"):
 		param := strings.TrimPrefix(route, "/echo/")
-		sendResponse(conn, "200 OK", param)
+		sendResponse(conn, "200 OK", "text/plain", param)
 	case route == "/user-agent":
 		userAgent := extractHeaderValue(string(req), "User-Agent")
 		if userAgent == "" {
-			sendResponse(conn, "400 Bad Request", "User-Agent header missing")
+			sendResponse(conn, "400 Bad Request", "text/plain", "User-Agent header missing")
 		} else {
-			sendResponse(conn, "200 OK", userAgent)
+			sendResponse(conn, "200 OK", "text/plain", userAgent)
 		}
 	case strings.HasPrefix(route, "/files/"):
 		directory := os.Args[2]
@@ -47,14 +47,12 @@ func handleConnection(conn net.Conn) {
 		fmt.Print(fileName)
 		data, err := os.ReadFile(directory + fileName)
 		if err != nil {
-			sendResponse(conn, "404 Not Found", "File not found")
+			sendResponse(conn, "404 Not Found", "text/plain", "File not found")
 		} else {
-			response := fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: %d\r\n\r\n%s", len(data), data)
-			conn.Write([]byte(response))
+			sendResponse(conn, "200 OK", "application/octet-stream", string(data))
 		}
-
 	default:
-		sendResponse(conn, "404 Not Found", "Route not found")
+		sendResponse(conn, "404 Not Found", "text/plain", "Route not found")
 	}
 }
 
@@ -75,10 +73,10 @@ func extractHeaderValue(request, headerName string) string {
 	return ""
 }
 
-func sendResponse(conn net.Conn, status, body string) {
+func sendResponse(conn net.Conn, status, contentType, body string) {
 	response := fmt.Sprintf(
-		"HTTP/1.1 %s\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s",
-		status, len(body), body,
+		"HTTP/1.1 %s\r\nContent-Type: %s\r\nContent-Length: %d\r\n\r\n%s",
+		status, contentType, len(body), body,
 	)
 	conn.Write([]byte(response))
 }
